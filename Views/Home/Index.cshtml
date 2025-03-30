@@ -1,0 +1,146 @@
+@model List<EmployeeDirectory.Models.Employee>
+
+@{
+    // Page configuration
+    ViewData["Title"] = "Employee Directory";  // Browser tab title
+}
+
+
+<h1>Employee Directory</h1>
+
+@if (Model == null || !Model.Any())
+{
+  
+    <div class="alert alert-info">
+        No employees found.  
+    </div>
+}
+else
+{
+    // Success message display 
+    @if (!string.IsNullOrEmpty(Context.Request.Query["successMessage"]))
+    {
+        <div class="alert alert-success alert-dismissible fade show w-25">
+            @Context.Request.Query["successMessage"]  
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+// Search filter
+    <div class="mb-3 w-25">
+        <input type="text" id="searchInput" class="form-control" 
+               placeholder="Search by name..."  
+               aria-label="Employee search"> 
+    </div>
+
+    // Employee data table 
+    <table class="table table-striped table-hover">
+        <thead class="table-light">  
+            <tr>
+                <th scope="col">ID</th>  
+                <th scope="col">Name</th>
+                <th scope="col">Position</th>
+                <th scope="col">Department</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var employee in Model)
+            {
+               // Table row per employee 
+                <tr>
+                    <td>@employee.ID</td>  
+                    <td>@employee.Name</td>  
+                    <td>@employee.Position</td>  
+                    <td>@employee.Department</td>  
+                    <td>
+                  
+                        <form class="delete-form" 
+                              asp-action="Delete" 
+                              asp-controller="Employee" 
+                              method="post">
+                            <input type="hidden" name="id" value="@employee.ID" />
+                            <button type="submit" 
+                                    class="btn btn-outline-danger btn-sm"
+                                    aria-label="Delete employee">
+                                Delete  
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a asp-action="Add" 
+   asp-controller="Employee" 
+   class="btn btn-primary"
+   role="button">
+    Add Employee  
+</a>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Real-time table filtering
+            $('#searchInput').on('keyup', function() {
+                const searchText = $(this).val().toLowerCase();
+                $('tbody tr').each(function() {
+                    const rowText = $(this).text().toLowerCase();
+                    $(this).toggle(rowText.includes(searchText));  // Show/hide matches
+                });
+            });
+
+            // Delete confirmation and handling
+            $(document).on('submit', '.delete-form', function(e) {
+                e.preventDefault();  // Stop default form submission
+                
+                if (confirm('Permanently delete this employee record?')) {
+                    const employeeRow = $(this).closest('tr');
+                    
+                    $.ajax({
+                        url: $(this).attr('action'),
+                        method: 'POST',
+                        data: $(this).serialize(),
+                        success: function(response) {
+                            if (response.success) {
+                                // Visual removal from table
+                                employeeRow.fadeOut(300, () => employeeRow.remove());
+                                
+                                // Success feedback
+                                showAlert('success', response.message || 'Employee deleted');
+                            }
+                        },
+                        error: function() {
+                            // Error handling
+                            showAlert('danger', 'Failed to delete employee');
+                        }
+                    });
+                }
+            });
+
+            // Universal alert display function
+            function showAlert(type, message) {
+                const alertElement = $(`
+                    <div class="alert alert-${type} alert-dismissible fade show w-25">
+                        ${message}
+                        <button type="button" class="btn-close" 
+                                data-bs-dismiss="alert"
+                                aria-label="Close alert"></button>
+                    </div>
+                `);
+
+                // Manage existing alerts
+                $('.alert').remove();  // Clear previous messages
+                
+                // Display and auto-dismiss new alert
+                alertElement.insertAfter('h1')
+                    .delay(3000)
+                    .fadeOut(400, function() {
+                        $(this).alert('close');
+                    });
+            }
+        });
+    </script>
+}
